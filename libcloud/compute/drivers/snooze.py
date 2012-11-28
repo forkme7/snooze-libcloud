@@ -123,16 +123,22 @@ class SnoozeNodeDriver(NodeDriver):
         return xmlData
      
     def shutdown(self,node):
-        metadata = node.extra ;
+        metadata = node.extra 
         self.get_and_set_assigned_groupmanager(node)
         location = node.extra.get("virtualMachineLocation")
         resp = self.connection_gm.request("groupmanager?shutdownVirtualMachine",method='POST',data=json.dumps(location))
         
     def suspend(self,node):
-        metadata = node.extra ;
+        metadata = node.extra 
         self.get_and_set_assigned_groupmanager(node)
         location = node.extra.get("virtualMachineLocation")
         resp = self.connection_gm.request("groupmanager?suspendVirtualMachine",method='POST',data=json.dumps(location))
+
+    def resume(self,node):
+        metadata = node.extra
+        self.get_and_set_assigned_groupmanager(node)
+        location = node.extra.get("virtualMachineLocation")
+        resp = self.connection_gm.request("groupmanager?resumeVirtualMachine",method='POST',data=json.dumps(location))
         
 class SnoozeNodeDriverV0(SnoozeNodeDriver):
     """
