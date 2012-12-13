@@ -20,6 +20,7 @@ Snooze = get_driver(Provider.SNOOZE)
 
 """
 Address of the bootstrap node
+With driver v1
 """
 driver = Snooze("127.0.0.1","6000");
 

@@ -7,6 +7,7 @@ from subprocess import Popen, PIPE
 
 """
 (Not Unit) Tests 
+Test Snooze drivers V1
 """
 
 class TestSnooze(unittest.TestCase):
