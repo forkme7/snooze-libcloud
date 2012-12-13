@@ -69,6 +69,17 @@ class SnoozeNodeDriver(NodeDriver):
         self.connection_gm = SnoozeConnection(host,port)
         self.connection_gm.driver = self
         
+    def get_gl_repository(self):
+        """
+        Gets the gl repository 
+        """
+        self.get_and_set_groupleader()
+        content=str(5)
+        headers = {"Content-type": "application/json"}
+        resp = self.connection_gl.request('/groupmanager?getGroupLeaderRepositoryInformation', headers=headers,method='POST',data=content)
+        server_object = resp.object
+        return json.loads(server_object)
+        
     def polling_for_response(self,task_id):
         server_object = None 
         i = 1  
@@ -106,7 +117,10 @@ class SnoozeNodeDriver(NodeDriver):
             return None
         else:
             meta_data = meta_data[0] 
-            return Node(
+            return self.__to_node(meta_data)
+        
+    def __to_node(self,meta_data):
+        return Node(
                 id=meta_data.get("virtualMachineLocation").get("virtualMachineId",None),
                 name=meta_data.get("virtualMachineLocation").get("virtualMachineId",None),
                 state=meta_data.get("status","UNKNOWN"),
@@ -115,6 +129,41 @@ class SnoozeNodeDriver(NodeDriver):
                 driver=self,
                 extra = meta_data
             )
+        
+    def list_nodes(self):
+        """
+        return the list of nodes
+        ask gl for gm 
+        then ask
+        gm for vm metadata
+        """
+        nodes = []
+        resp=self.get_gl_repository()
+        group_managers = resp.get("groupManagerDescriptions")
+        for group_manager in group_managers:
+            control_setting=group_manager.get("listenSettings").get("controlDataAddress") 
+            host = control_setting.get("address")
+            port = control_setting.get("port")
+            print "connection to "
+            print host
+            print port
+            connection_gm = SnoozeConnection(host,port)
+            connection_gm.driver = self
+            gm_repository = self.get_gm_repository(connection_gm)
+            local_controllers = gm_repository.get("localControllerDescriptions")
+            for local_controller in local_controllers:
+                metadatas = local_controller.get("virtualMachineMetaData")
+                for virtual_machine, metadata in metadatas.iteritems():
+                    nodes.append(self.__to_node(metadata)) 
+                    
+        return nodes
+        
+    def get_gm_repository(self,connection_gm):
+        content=str(5)
+        headers = {"Content-type": "application/json"}
+        resp = connection_gm.request('/groupmanager?getGroupManagerRepositoryInformation', headers=headers,method='POST',data=content)
+        server_object = resp.object
+        return json.loads(server_object)
           
     def get_name_from_template(self,template):
         dom = parseString(template)
@@ -139,10 +188,16 @@ class SnoozeNodeDriver(NodeDriver):
         self.get_and_set_assigned_groupmanager(node)
         location = node.extra.get("virtualMachineLocation")
         resp = self.connection_gm.request("groupmanager?resumeVirtualMachine",method='POST',data=json.dumps(location))
+    
+    def destroy(self,node):
+        metadata = node.extra
+        self.get_and_set_assigned_groupmanager(node)
+        location = node.extra.get("virtualMachineLocation")
+        resp = self.connection_gm.request("groupmanager?destroyVirtualMachine",method='POST',data=json.dumps(location))
         
 class SnoozeNodeDriverV0(SnoozeNodeDriver):
-    """
-    Original version
+    """ 
+    Version 0 : working with snooze 1.0.0
     """
     def create_node(self, **kwargs):
         """
@@ -187,7 +242,7 @@ class SnoozeNodeDriverV0(SnoozeNodeDriver):
 
 class SnoozeNodeDriverV1(SnoozeNodeDriver):
     """
-    image repository support
+    Version 1 : work with snooze v 2.0
     """
     def create_node(self, **kwargs):
         """
