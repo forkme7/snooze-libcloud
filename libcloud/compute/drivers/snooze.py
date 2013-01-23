@@ -6,8 +6,12 @@ from libcloud.common.base import Connection
 
 from xml.dom.minidom import parseString
 import json
-
+import httplib
 import time
+
+HTTP_RETRIES = 2
+POLLING_INTERVAL = 2
+POLLING_RETRIES = 20
 
 class SnoozeConnection(Connection):
     """
@@ -48,7 +52,15 @@ class SnoozeNodeDriver(NodeDriver):
         """
         Gets the group leader
         """
-        resp = self.connection_bs.request("/bootstrap?getGroupLeaderDescription",method='GET') 
+        attempt = 0
+        while attempt < HTTP_RETRIES:
+            attempt += 1
+            try:
+                resp = self.connection_bs.request("/bootstrap?getGroupLeaderDescription",method='GET')
+                break
+            except  httplib.HTTPException:
+                continue
+         
         json_data = resp.body
         data = json.loads(json_data)
         host = data["listenSettings"]["controlDataAddress"]["address"]
@@ -69,12 +81,12 @@ class SnoozeNodeDriver(NodeDriver):
         self.connection_gm = SnoozeConnection(host,port)
         self.connection_gm.driver = self
         
-    def get_gl_repository(self):
+    def get_gl_repository(self,num=5):
         """
         Gets the gl repository 
         """
         self.get_and_set_groupleader()
-        content=str(5)
+        content=str(num)
         headers = {"Content-type": "application/json"}
         resp = self.connection_gl.request('/groupmanager?getGroupLeaderRepositoryInformation', headers=headers,method='POST',data=content)
         server_object = resp.object
@@ -83,12 +95,13 @@ class SnoozeNodeDriver(NodeDriver):
     def polling_for_response(self,task_id):
         server_object = None 
         i = 1  
-        time.sleep(2)
-        while i <= 10 :
+        time.sleep(POLLING_INTERVAL)
+        server_object="{}"
+        while i <= POLLING_RETRIES :
             resp = self.connection_gl.request("groupmanager?getVirtualClusterResponse",method='POST',data=task_id)
             if not resp.object:
                 i=i+1
-                time.sleep(2)
+                time.sleep(POLLING_INTERVAL)
             else :
                 server_object = resp.object
                 break 
@@ -144,9 +157,6 @@ class SnoozeNodeDriver(NodeDriver):
             control_setting=group_manager.get("listenSettings").get("controlDataAddress") 
             host = control_setting.get("address")
             port = control_setting.get("port")
-            print "connection to "
-            print host
-            print port
             connection_gm = SnoozeConnection(host,port)
             connection_gm.driver = self
             gm_repository = self.get_gm_repository(connection_gm)
@@ -157,6 +167,7 @@ class SnoozeNodeDriver(NodeDriver):
                     nodes.append(self.__to_node(metadata)) 
                     
         return nodes
+        
         
     def get_gm_repository(self,connection_gm):
         content=str(5)
@@ -194,6 +205,34 @@ class SnoozeNodeDriver(NodeDriver):
         self.get_and_set_assigned_groupmanager(node)
         location = node.extra.get("virtualMachineLocation")
         resp = self.connection_gm.request("groupmanager?destroyVirtualMachine",method='POST',data=json.dumps(location))
+    
+    def resize(self,node,vcpu=1,memory=512000,tx=128000,rx=128000):
+        metadata = node.extra
+        self.get_and_set_assigned_groupmanager(node)
+        location = node.extra.get("virtualMachineLocation")
+        resize_request = {
+                            "virtualMachineLocation" : location,
+                            "resizedCapacity":
+                            [vcpu,memory,tx,rx]
+                          } 
+        resp = self.connection_gm.request("groupmanager?resizeVirtualMachine",method='POST',data=json.dumps(resize_request))
+    
+    def migrate(self,node,newLocation):
+        metadata = node.extra
+        self.get_and_set_assigned_groupmanager(node)
+        location = node.extra.get("virtualMachineLocation")
+        migration_request = {
+                                "oldLocation" : location,
+                                "newLocation" : newLocation
+                             }
+        resp = self.connection_gm.request("groupmanager?migrateVirtualMachine",method='POST',data=json.dumps(migration_request))
+        
+    def restart(self,node):
+        metadata = node.extra
+        self.get_and_set_assigned_groupmanager(node)
+        location = node.extra.get("virtualMachineLocation")
+        print location
+        resp = self.connection_gm.request("groupmanager?restartVirtualMachine",method='POST',data=json.dumps(location))
         
 class SnoozeNodeDriverV0(SnoozeNodeDriver):
     """ 
