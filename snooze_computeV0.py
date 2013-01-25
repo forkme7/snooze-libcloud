@@ -15,13 +15,13 @@
 
 from libcloud.compute.types import Provider
 from libcloud.compute.providers import get_driver
-
-Snooze = get_driver(Provider.SNOOZE)
-
+import json
+import time
 """
 Address of the bootstrap node
 with driver V0
 """
+Snooze = get_driver(Provider.SNOOZE)
 driver = Snooze("127.0.0.1","5000");
 
 resp = driver.get_and_set_groupleader() ;
@@ -34,15 +34,19 @@ We create a first VM using the template fashion
 n1 = driver.create_node(libvirt_template="/home/msimonin/Images-VM/Snooze-images/vmtemplates/debian1.xml",
                    tx=12800,
                    rx=12800
-                   )
+                  )
+driver.shutdown(n1)
+time.sleep(2)
+driver.list_nodes()
+print "VM %s status %s"%(n1.name,n1.state)
 
 n2 = driver.create_node(libvirt_template="/home/msimonin/Images-VM/Snooze-images/vmtemplates/debian2.xml",
                    tx=12800,
                    rx=12800
                    )
-print "VM %s status %s"%(n1.name,n1.state)
-
+print "VM %s status %s"%(n2.name,n2.state)
+driver.migrate(n1,n1.extra.get("virtualMachineLocation"))
 print driver.list_nodes()
-
-driver.destroy(n1)
-driver.destroy(n2)
+print "waiting 10s"
+time.sleep(10)
+driver.shutdown(n1)
