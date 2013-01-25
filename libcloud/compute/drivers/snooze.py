@@ -60,7 +60,7 @@ class SnoozeNodeDriver(NodeDriver):
                 break
             except  httplib.HTTPException:
                 continue
-         
+        
         json_data = resp.body
         data = json.loads(json_data)
         host = data["listenSettings"]["controlDataAddress"]["address"]
@@ -205,17 +205,6 @@ class SnoozeNodeDriver(NodeDriver):
         self.get_and_set_assigned_groupmanager(node)
         location = node.extra.get("virtualMachineLocation")
         resp = self.connection_gm.request("groupmanager?destroyVirtualMachine",method='POST',data=json.dumps(location))
-    
-    def resize(self,node,vcpu=1,memory=512000,tx=128000,rx=128000):
-        metadata = node.extra
-        self.get_and_set_assigned_groupmanager(node)
-        location = node.extra.get("virtualMachineLocation")
-        resize_request = {
-                            "virtualMachineLocation" : location,
-                            "resizedCapacity":
-                            [vcpu,memory,tx,rx]
-                          } 
-        resp = self.connection_gm.request("groupmanager?resizeVirtualMachine",method='POST',data=json.dumps(resize_request))
     
     def migrate(self,node,newLocation):
         metadata = node.extra
