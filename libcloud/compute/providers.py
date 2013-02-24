@@ -17,7 +17,9 @@ Provider related utilities
 """
 
 from libcloud.utils.misc import get_driver as _get_provider_driver
-from libcloud.compute.types import Provider
+from libcloud.utils.misc import set_driver as _set_provider_driver
+from libcloud.compute.types import Provider, DEPRECATED_RACKSPACE_PROVIDERS
+from libcloud.compute.types import OLD_CONSTANT_TO_NEW_MAPPING
 
 __all__ = [
     "Provider",
@@ -41,6 +43,8 @@ DRIVERS = {
         ('libcloud.compute.drivers.ec2', 'EC2APNENodeDriver'),
     Provider.EC2_SA_EAST:
         ('libcloud.compute.drivers.ec2', 'EC2SAEastNodeDriver'),
+    Provider.EC2_AP_SOUTHEAST2:
+        ('libcloud.compute.drivers.ec2', 'EC2APSESydneyNodeDriver'),
     Provider.ECP:
         ('libcloud.compute.drivers.ecp', 'ECPNodeDriver'),
     Provider.ELASTICHOSTS_UK1:
@@ -65,8 +69,8 @@ DRIVERS = {
         ('libcloud.compute.drivers.gogrid', 'GoGridNodeDriver'),
     Provider.RACKSPACE:
         ('libcloud.compute.drivers.rackspace', 'RackspaceNodeDriver'),
-    Provider.RACKSPACE_UK:
-        ('libcloud.compute.drivers.rackspace', 'RackspaceUKNodeDriver'),
+    Provider.RACKSPACE_FIRST_GEN:
+        ('libcloud.compute.drivers.rackspace', 'RackspaceFirstGenNodeDriver'),
     Provider.SLICEHOST:
         ('libcloud.compute.drivers.slicehost', 'SlicehostNodeDriver'),
     Provider.VPSNET:
@@ -101,20 +105,12 @@ DRIVERS = {
         ('libcloud.compute.drivers.openstack', 'OpenStackNodeDriver'),
     Provider.NINEFOLD:
         ('libcloud.compute.drivers.ninefold', 'NinefoldNodeDriver'),
-    Provider.SNOOZE:
-        ('libcloud.compute.drivers.snooze', 'SnoozeNodeDriverV0'),
     Provider.VCLOUD:
         ('libcloud.compute.drivers.vcloud', 'VCloudNodeDriver'),
     Provider.TERREMARK:
         ('libcloud.compute.drivers.vcloud', 'TerremarkDriver'),
     Provider.CLOUDSTACK:
         ('libcloud.compute.drivers.cloudstack', 'CloudStackNodeDriver'),
-    Provider.RACKSPACE_NOVA_BETA:
-        ('libcloud.compute.drivers.rackspacenova', 'RackspaceNovaBetaNodeDriver'),
-    Provider.RACKSPACE_NOVA_DFW:
-        ('libcloud.compute.drivers.rackspacenova', 'RackspaceNovaDfwNodeDriver'),
-    Provider.RACKSPACE_NOVA_LON:
-        ('libcloud.compute.drivers.rackspacenova', 'RackspaceNovaLonNodeDriver'),
     Provider.LIBVIRT:
         ('libcloud.compute.drivers.libvirt_driver', 'LibvirtNodeDriver'),
     Provider.JOYENT:
@@ -122,9 +118,29 @@ DRIVERS = {
     Provider.VCL:
         ('libcloud.compute.drivers.vcl', 'VCLNodeDriver'),
     Provider.KTUCLOUD:
-        ('libcloud.compute.drivers.ktucloud', 'KTUCloudNodeDriver')
+        ('libcloud.compute.drivers.ktucloud', 'KTUCloudNodeDriver'),
+    Provider.HOSTVIRTUAL:
+        ('libcloud.compute.drivers.hostvirtual', 'HostVirtualNodeDriver'),
+    Provider.ABIQUO:
+        ('libcloud.compute.drivers.abiquo', 'AbiquoNodeDriver'),
+    Provider.SNOOZE:
+        ('libcloud.compute.drivers.snooze', 'SnoozeNodeDriverV0'),
 }
 
 
 def get_driver(provider):
+    if provider in DEPRECATED_RACKSPACE_PROVIDERS:
+        id_to_name_map = dict([(v, k) for k, v in Provider.__dict__.items()])
+        old_name = id_to_name_map[provider]
+        new_name = id_to_name_map[OLD_CONSTANT_TO_NEW_MAPPING[provider]]
+
+        msg = 'Provider constant %s has been removed. New constant ' \
+              'is now called %s.\n' \
+              'For more information on this change and how to modify your ' \
+              'code to work with it, please visit: TODO' % (old_name, new_name)
+        raise Exception(msg)
+
     return _get_provider_driver(DRIVERS, provider)
+
+def set_driver(provider, module, klass):
+    return _set_provider_driver(DRIVERS, provider, module, klass)

@@ -18,6 +18,7 @@ Base types used by other parts of libcloud
 
 from libcloud.common.types import LibcloudError, MalformedResponseError
 from libcloud.common.types import InvalidCredsError, InvalidCredsException
+
 __all__ = [
     "Provider",
     "NodeState",
@@ -28,7 +29,9 @@ __all__ = [
     "LibcloudError",
     "MalformedResponseError",
     "InvalidCredsError",
-    "InvalidCredsException"
+    "InvalidCredsException",
+    "DEPRECATED_RACKSPACE_PROVIDERS",
+    "OLD_CONSTANT_TO_NEW_MAPPING"
     ]
 
 
@@ -40,8 +43,8 @@ class Provider(object):
     @cvar EC2_US_EAST: Amazon AWS US N. Virgina
     @cvar EC2_US_WEST: Amazon AWS US N. California
     @cvar EC2_EU_WEST: Amazon AWS EU Ireland
-    @cvar RACKSPACE: Rackspace Cloud Servers
-    @cvar RACKSPACE_UK: Rackspace UK Cloud Servers
+    @cvar RACKSPACE: Rackspace next-gen OpenStack based Cloud Servers
+    @cvar RACKSPACE_FIRST_GEN: Rackspace First Gen Cloud Servers
     @cvar SLICEHOST: Slicehost.com
     @cvar GOGRID: GoGrid
     @cvar VPSNET: VPS.net
@@ -61,68 +64,92 @@ class Provider(object):
     @cvar EC2_US_WEST_OREGON: Amazon AWS US West 2 (Oregon)
     @cvar CLOUDSTACK: CloudStack
     @cvar CLOUDSIGMA_US: CloudSigma US Las Vegas
-    @cvar RACKSPACE_NOVA_BETA: Rackspace Nova Private Beta (ORD)
-    @cvar RACKSPACE_NOVA_DFW: Rackspace Nova Private DFW (DFW)
-    @cvar RACKSPACE_NOVA_LON: Rackspace Nova Private LON (LON)
     @cvar LIBVIRT: Libvirt driver
     @cvar JOYENT: Joyent driver
     @cvar VCL: VCL driver
     @cvar KTUCLOUD: kt ucloud driver
     @cvar GRIDSPOT: Gridspot driver
+    @cvar ABIQUO: Abiquo driver
     """
-    DUMMY = 0
-    EC2 = 1  # deprecated name
-    EC2_US_EAST = 1
-    EC2_EU = 2  # deprecated name
-    EC2_EU_WEST = 2
-    RACKSPACE = 3
-    SLICEHOST = 4
-    GOGRID = 5
-    VPSNET = 6
-    LINODE = 7
-    VCLOUD = 8
-    RIMUHOSTING = 9
-    EC2_US_WEST = 10
-    VOXEL = 11
-    SOFTLAYER = 12
-    EUCALYPTUS = 13
-    ECP = 14
-    IBM = 15
-    OPENNEBULA = 16
-    DREAMHOST = 17
-    ELASTICHOSTS = 18
-    ELASTICHOSTS_UK1 = 19
-    ELASTICHOSTS_UK2 = 20
-    ELASTICHOSTS_US1 = 21
-    EC2_AP_SOUTHEAST = 22
-    RACKSPACE_UK = 23
-    BRIGHTBOX = 24
-    CLOUDSIGMA = 25
-    EC2_AP_NORTHEAST = 26
-    NIMBUS = 27
-    BLUEBOX = 28
-    GANDI = 29
-    OPSOURCE = 30
-    OPENSTACK = 31
-    SKALICLOUD = 32
-    SERVERLOVE = 33
-    NINEFOLD = 34
-    TERREMARK = 35
-    EC2_US_WEST_OREGON = 36
-    CLOUDSTACK = 37
-    CLOUDSIGMA_US = 38
-    EC2_SA_EAST = 39
-    RACKSPACE_NOVA_BETA = 40
-    RACKSPACE_NOVA_DFW = 41
-    LIBVIRT = 42
-    ELASTICHOSTS_US2 = 43
-    ELASTICHOSTS_CA1 = 44
-    JOYENT = 45
-    VCL = 46
-    KTUCLOUD = 47
-    RACKSPACE_NOVA_LON = 48
-    GRIDSPOT = 49
-    SNOOZE = 50
+    DUMMY = 'dummy'
+    EC2 = 'ec2_us_east'
+    RACKSPACE = 'rackspace'
+    SLICEHOST = 'slicehost'
+    GOGRID = 'gogrid'
+    VPSNET = 'vpsnet'
+    LINODE = 'linode'
+    VCLOUD = 'vcloud'
+    RIMUHOSTING = 'rimuhosting'
+    VOXEL = 'voxel'
+    SOFTLAYER = 'softlayer'
+    EUCALYPTUS = 'eucalyptus'
+    ECP = 'ecp'
+    IBM = 'ibm'
+    OPENNEBULA = 'opennebula'
+    DREAMHOST = 'dreamhost'
+    ELASTICHOSTS = 'elastichosts'
+    ELASTICHOSTS_UK1 = 'elastichosts_uk1'
+    ELASTICHOSTS_UK2 = 'elastichosts_uk2'
+    ELASTICHOSTS_US1 = 'elastichosts_us1'
+    BRIGHTBOX = 'brightbox'
+    CLOUDSIGMA = 'cloudsigma'
+    NIMBUS = 'nimbus'
+    BLUEBOX = 'bluebox'
+    GANDI = 'gandi'
+    OPSOURCE = 'opsource'
+    OPENSTACK = 'openstack'
+    SKALICLOUD = 'skalicloud'
+    SERVERLOVE = 'serverlove'
+    NINEFOLD = 'ninefold'
+    TERREMARK = 'terremark'
+    CLOUDSTACK = 'cloudstack'
+    CLOUDSIGMA_US = 'cloudsigma_us'
+    LIBVIRT = 'libvirt'
+    ELASTICHOSTS_US2 = 'elastichosts_us2'
+    ELASTICHOSTS_CA1 = 'elastichosts_ca1'
+    JOYENT = 'joyent'
+    VCL = 'vcl'
+    KTUCLOUD = 'ktucloud'
+    GRIDSPOT = 'gridspot'
+    RACKSPACE_FIRST_GEN = 'rackspace_first_gen'
+    HOSTVIRTUAL = 'hostvirtual'
+    ABIQUO = 'abiquo'
+    SNOOZE = 'snooze'
+
+    # Deprecated constants which are still supported
+    EC2_US_EAST = 'ec2_us_east'
+    EC2_EU = 'ec2_eu_west'  # deprecated name
+    EC2_EU_WEST = 'ec2_eu_west'
+    EC2_US_WEST = 'ec2_us_west'
+    EC2_AP_SOUTHEAST = 'ec2_ap_southeast'
+    EC2_AP_NORTHEAST = 'ec2_ap_northeast'
+    EC2_US_WEST_OREGON = 'ec2_us_west_oregon'
+    EC2_SA_EAST = 'ec2_sa_east'
+    EC2_AP_SOUTHEAST2 = 'ec2_ap_southeast_2'
+
+    # Deprecated constants which aren't supported anymore
+    RACKSPACE_UK = 'rackspace_uk'
+    RACKSPACE_NOVA_BETA = 'rackspace_nova_beta'
+    RACKSPACE_NOVA_DFW = 'rackspace_nova_dfw'
+    RACKSPACE_NOVA_LON = 'rackspace_nova_lon'
+    RACKSPACE_NOVA_ORD = 'rackspace_nova_ord'
+
+
+DEPRECATED_RACKSPACE_PROVIDERS = [Provider.RACKSPACE_UK,
+                                  Provider.RACKSPACE_NOVA_BETA,
+                                  Provider.RACKSPACE_NOVA_DFW,
+                                  Provider.RACKSPACE_NOVA_LON,
+                                  Provider.RACKSPACE_NOVA_ORD]
+OLD_CONSTANT_TO_NEW_MAPPING = {
+    Provider.RACKSPACE: Provider.RACKSPACE_FIRST_GEN,
+    Provider.RACKSPACE_UK: Provider.RACKSPACE_FIRST_GEN,
+
+    Provider.RACKSPACE_NOVA_BETA: Provider.RACKSPACE,
+    Provider.RACKSPACE_NOVA_DFW: Provider.RACKSPACE,
+    Provider.RACKSPACE_NOVA_LON: Provider.RACKSPACE,
+    Provider.RACKSPACE_NOVA_ORD: Provider.RACKSPACE
+}
+
 
 class NodeState(object):
     """

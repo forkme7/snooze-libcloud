@@ -15,7 +15,7 @@ POLLING_RETRIES = 20
 
 class SnoozeConnection(Connection):
     """
-    Dummy connection class
+    Snooze Connection class
     """
     def __init__(self,host,port):
         super(SnoozeConnection, self).__init__(False, host, port)
@@ -45,8 +45,6 @@ class SnoozeNodeDriver(NodeDriver):
         
         self.connection_gm = SnoozeConnection(host,port)
         self.connection_gl.driver = self
-        #self.connection.host = "http://localhost"
-        #self.connection.port = "5000"
         
     def get_and_set_groupleader(self):
         """
@@ -145,10 +143,7 @@ class SnoozeNodeDriver(NodeDriver):
         
     def list_nodes(self):
         """
-        return the list of nodes
-        ask gl for gm 
-        then ask
-        gm for vm metadata
+        Return the list of nodes in Snooze system
         """
         nodes = []
         resp=self.get_gl_repository()
@@ -183,30 +178,58 @@ class SnoozeNodeDriver(NodeDriver):
         return xmlData
      
     def shutdown(self,node):
+        """
+        shutdown a node
+        @param       node: node 
+        @type        node: L{Node}
+        """
         metadata = node.extra 
         self.get_and_set_assigned_groupmanager(node)
         location = node.extra.get("virtualMachineLocation")
         resp = self.connection_gm.request("groupmanager?shutdownVirtualMachine",method='POST',data=json.dumps(location))
         
     def suspend(self,node):
+        """
+        suspend a node
+        @param       node: node 
+        @type        node: L{Node}
+        """
         metadata = node.extra 
         self.get_and_set_assigned_groupmanager(node)
         location = node.extra.get("virtualMachineLocation")
         resp = self.connection_gm.request("groupmanager?suspendVirtualMachine",method='POST',data=json.dumps(location))
 
     def resume(self,node):
+        """
+        resume a node
+        @param       node: node 
+        @type        node: L{Node}
+        """
         metadata = node.extra
         self.get_and_set_assigned_groupmanager(node)
         location = node.extra.get("virtualMachineLocation")
         resp = self.connection_gm.request("groupmanager?resumeVirtualMachine",method='POST',data=json.dumps(location))
     
     def destroy(self,node):
+        """
+        destroy a node
+        @param       node: node 
+        @type        node: L{Node}
+        """
         metadata = node.extra
         self.get_and_set_assigned_groupmanager(node)
         location = node.extra.get("virtualMachineLocation")
         resp = self.connection_gm.request("groupmanager?destroyVirtualMachine",method='POST',data=json.dumps(location))
     
     def migrate(self,node,newLocation):
+        """
+        migrate a node to a new location
+        @param       node: node 
+        @type        node: L{Node}
+
+        @param       newLocation : new location
+        @type        newLocation: C{dict}
+        """
         metadata = node.extra
         self.get_and_set_assigned_groupmanager(node)
         location = node.extra.get("virtualMachineLocation")
@@ -216,22 +239,21 @@ class SnoozeNodeDriver(NodeDriver):
                              }
         resp = self.connection_gm.request("groupmanager?migrateVirtualMachine",method='POST',data=json.dumps(migration_request))
         
-    def restart(self,node):
-        metadata = node.extra
-        self.get_and_set_assigned_groupmanager(node)
-        location = node.extra.get("virtualMachineLocation")
-        print location
-        resp = self.connection_gm.request("groupmanager?restartVirtualMachine",method='POST',data=json.dumps(location))
-        
 class SnoozeNodeDriverV0(SnoozeNodeDriver):
     """ 
     Version 0 : working with snooze 1.0.0
     """
-    def create_node(self, **kwargs):
+    def create_node(self,libvirt_template=None, raw_template=None,
+                         tx=12800,
+                         rx=12800,
+                         **kwargs):
         """
-        startVirtualCluster
-        @param       libvirt_template:  libvirt_template
+        StartVirtualCluster
+        @param       libvirt_template:  template path
         @type        libvirt_template: C{str}
+
+        @param       raw_template:  raw template
+        @type        raw_template: C{str}
 
         @param       tx: network transmission capacity
         @type        tx: C{int}
@@ -241,12 +263,13 @@ class SnoozeNodeDriverV0(SnoozeNodeDriver):
         """
         uri = self.get_and_set_groupleader()
         
-        libvirt_template = kwargs.get("libvirt_template")
-        tx = kwargs.get("tx")
-        rx = kwargs.get("rx")
-         
-        f = open(libvirt_template)
-        template = f.read().replace('\n','').replace('\r','') 
+        template = ""
+        if (libvirt_template): 
+            f = open(libvirt_template)
+            template = f.read().replace('\n','').replace('\r','') 
+        else:
+            template = kwargs.get("raw_template",None)
+        
         name = self.get_name_from_template(template)
     
         attributes = {"virtualMachineTemplates":
@@ -285,7 +308,7 @@ class SnoozeNodeDriverV1(SnoozeNodeDriver):
             return self.create_node_id_based(**kwargs)
             
         
-    def create_node_raw(self, **kwargs):
+    def create_node_raw(self, libvirt_template=None, tx=12800, rx=12800, **kwargs):
         """
         startVirtualCluster
         @param       libvirt_template:  libvirt_template
