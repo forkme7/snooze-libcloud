@@ -127,15 +127,14 @@ class SnoozeNodeDriver(NodeDriver):
         if meta_data is None:
             return None
         else:
-            meta_data = meta_data[0] 
-            return self.__to_node(meta_data)
+	    return [self.__to_node(node) for node in meta_data]	
         
     def __to_node(self,meta_data):
         return Node(
                 id=meta_data.get("virtualMachineLocation").get("virtualMachineId",None),
                 name=meta_data.get("virtualMachineLocation").get("virtualMachineId",None),
                 state=meta_data.get("status","UNKNOWN"),
-                public_ips=meta_data.get("ip_address","UNKNOWN"),
+                public_ips=meta_data.get("ipAddress","UNKNOWN"),
                 private_ips=None,
                 driver=self,
                 extra = meta_data
@@ -234,16 +233,19 @@ class SnoozeNodeDriver(NodeDriver):
         self.get_and_set_assigned_groupmanager(node)
         location = node.extra.get("virtualMachineLocation")
         migration_request = {
-                                "oldLocation" : location,
-                                "newLocation" : newLocation
+                                "sourceVirtualMachineLocation" : location,
+                                "destinationVirtualMachineLocation" : newLocation,
+                                "destinationHypervisorSettings" : None,
+                                "migrated" : False
                              }
-        resp = self.connection_gm.request("groupmanager?migrateVirtualMachine",method='POST',data=json.dumps(migration_request))
+        self.get_and_set_groupleader()
+        resp = self.connection_gl.request('/groupmanager?migrateVirtualMachine',method='POST',data=json.dumps(migration_request))
         
 class SnoozeNodeDriverV0(SnoozeNodeDriver):
     """ 
     Version 0 : working with snooze 1.0.0
     """
-    def create_node(self,libvirt_template=None, raw_template=None,
+    def create_node(self,libvirt_templates=None, raw_templates=None,
                          tx=12800,
                          rx=12800,
                          **kwargs):
@@ -263,27 +265,28 @@ class SnoozeNodeDriverV0(SnoozeNodeDriver):
         """
         uri = self.get_and_set_groupleader()
         
-        template = ""
-        if (libvirt_template): 
-            f = open(libvirt_template)
-            template = f.read().replace('\n','').replace('\r','') 
+        templates = []
+        if (libvirt_templates):
+            for t in libvirt_templates:
+            	f = open(t)
+            	templates.append( f.read().replace('\n','').replace('\r',''))
         else:
-            template = kwargs.get("raw_template",None)
+            templates = kwargs.get("raw_templates",None)
         
-        name = self.get_name_from_template(template)
-    
-        attributes = {"virtualMachineTemplates":
-                         [
-                             {
+        #name = self.get_name_from_template(template)
+	attributes = dict()
+	attributes["virtualMachineTemplates"] = list()
+    	for template in templates:
+		attribute = {
                                 "libVirtTemplate":template,
                                 "networkCapacityDemand" : 
                                    {
                                     "txBytes" : tx,
                                     "rxBytes" : rx,
                                     }
-                             }
-                          ]
-                      }
+                             } 
+		attributes["virtualMachineTemplates"].append(attribute)	
+
         resp = self.connection_gl.request("groupmanager?startVirtualCluster",method='POST',data=json.dumps(attributes))
         task_id = resp.object
         
