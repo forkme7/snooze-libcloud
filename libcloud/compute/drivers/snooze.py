@@ -1,8 +1,11 @@
 from libcloud.compute.base import NodeDriver, Node, NodeSize
 from libcloud.compute.base import NodeState, NodeImage
 from libcloud.compute.types import Provider
+from libcloud.common.types import MalformedResponseError
+
 
 from libcloud.common.base import Connection
+from libcloud.common.base import Response
 
 from xml.dom.minidom import parseString
 import json
@@ -13,13 +16,48 @@ HTTP_RETRIES = 2
 POLLING_INTERVAL = 2
 POLLING_RETRIES = 20
 
+class SnoozeResponse(Response):
+    """
+    Snooze http response class
+    """
+    node_driver = None
+    def success(self):
+        i = int(self.status)
+        return i >= 200 and i <=299
+
+    def has_content_type(self, content_type):
+        content_type_value = self.headers.get('content-type') or ''
+        content_type_value = content_type_value.lower()
+        return content_type_value.find(content_type.lower()) > -1
+
+    def parse_body(self):
+        if self.status == httplib.NO_CONTENT or not self.body:
+            return None
+        if self.has_content_type('application/json'):
+          try:
+              return json.loads(self.body)
+          except:
+              # hum hum ... sometimes rest answer has application/json but are not json (eg String)
+              return self.body
+              """
+              raise MalformedResponseError(
+                  'Failed to parse JSON',
+                  body=self.body,
+                  driver=self.node_driver)
+              """
+        else:
+            return self.body
+
 class SnoozeConnection(Connection):
     """
     Snooze Connection class
     """
-    def __init__(self,host,port):
+    responseCls = SnoozeResponse
+    def __init__(self,host,port
+    ):
         super(SnoozeConnection, self).__init__(False, host, port)
         
+
            
            
 class SnoozeNodeDriver(NodeDriver):
@@ -27,6 +65,7 @@ class SnoozeNodeDriver(NodeDriver):
     Snooze (http://snooze.inria.fr) node driver.
 
     """
+    connectionCls = SnoozeConnection
     type = Provider.SNOOZE
     name = 'Snooze'
     website = 'http://snooze.inria.fr'
@@ -47,8 +86,18 @@ class SnoozeNodeDriver(NodeDriver):
         self.connection_gl.driver = self
         
     def get_and_set_groupleader(self):
+      data_str = self.get_groupleader()
+      data = json.loads(data_str)
+
+      host = data["listenSettings"]["controlDataAddress"]["address"]
+      port = data["listenSettings"]["controlDataAddress"]["port"]
+      self.connection_gl = SnoozeConnection(host,port)
+      self.connection_gl.driver = self 
+      return data["listenSettings"]["controlDataAddress"] 
+
+    def get_groupleader(self):
         """
-        Gets the group leader
+        Gets the group leader addresses
         """
         attempt = 0
         while attempt < HTTP_RETRIES:
@@ -58,15 +107,11 @@ class SnoozeNodeDriver(NodeDriver):
                 break
             except  httplib.HTTPException:
                 continue
-        
-        json_data = resp.body
-        data = json.loads(json_data)
-        host = data["listenSettings"]["controlDataAddress"]["address"]
-        port = data["listenSettings"]["controlDataAddress"]["port"]
-        self.connection_gl = SnoozeConnection(host,port)
-        self.connection_gl.driver = self 
-        
-        return data["listenSettings"]["controlDataAddress"] 
+        """ 
+        #json_data = resp.body
+        #data = json.loads(json_data)
+        """
+        return  resp.body
 
     def get_and_set_assigned_groupmanager(self,node):
         """
@@ -88,7 +133,7 @@ class SnoozeNodeDriver(NodeDriver):
         headers = {"Content-type": "application/json"}
         resp = self.connection_gl.request('/groupmanager?getGroupLeaderRepositoryInformation', headers=headers,method='POST',data=content)
         server_object = resp.object
-        return json.loads(server_object)
+        return server_object
         
     def polling_for_response(self,task_id):
         server_object = None 
@@ -103,7 +148,6 @@ class SnoozeNodeDriver(NodeDriver):
             else :
                 server_object = resp.object
                 break 
-        server_object = json.loads(server_object)
         return server_object
 
     
@@ -168,7 +212,7 @@ class SnoozeNodeDriver(NodeDriver):
         headers = {"Content-type": "application/json"}
         resp = connection_gm.request('/groupmanager?getGroupManagerRepositoryInformation', headers=headers,method='POST',data=content)
         server_object = resp.object
-        return json.loads(server_object)
+        return server_object
           
     def get_name_from_template(self,template):
         dom = parseString(template)
@@ -274,19 +318,19 @@ class SnoozeNodeDriverV0(SnoozeNodeDriver):
             templates = kwargs.get("raw_templates",None)
         
         #name = self.get_name_from_template(template)
-	attributes = dict()
-	attributes["virtualMachineTemplates"] = list()
-    	for template in templates:
-		attribute = {
-                                "libVirtTemplate":template,
-                                "networkCapacityDemand" : 
-                                   {
-                                    "txBytes" : tx,
-                                    "rxBytes" : rx,
-                                    }
-                             } 
-		attributes["virtualMachineTemplates"].append(attribute)	
-
+        attributes = dict()
+        attributes["virtualMachineTemplates"] = list()
+        for template in templates:
+          attribute = {
+            "libVirtTemplate":template,
+            "networkCapacityDemand" : 
+            {
+              "txBytes" : tx,
+              "rxBytes" : rx,
+            }
+          } 
+          attributes["virtualMachineTemplates"].append(attribute)	
+        
         resp = self.connection_gl.request("groupmanager?startVirtualCluster",method='POST',data=json.dumps(attributes))
         task_id = resp.object
         
